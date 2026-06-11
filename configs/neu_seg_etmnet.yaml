@@ -1,0 +1,35 @@
+dataset_name: NEU_Seg
+num_classes: 2
+train_image_dir: data/NEU_Seg/images
+train_mask_dir: data/NEU_Seg/masks
+val_image_dir: data/NEU_Seg/images
+val_mask_dir: data/NEU_Seg/masks
+test_image_dir: data/NEU_Seg/images
+test_mask_dir: data/NEU_Seg/masks
+train_split_file: data/NEU_Seg/splits/train.txt
+val_split_file: data/NEU_Seg/splits/val.txt
+test_split_file: data/NEU_Seg/splits/test.txt
+input_size: [512, 512]
+batch_size: 8
+epochs: 120
+learning_rate: 0.01
+weight_decay: 0.0005
+num_workers: 4
+model_name: ETMNet
+use_edgeflowconv: true
+use_topology_context: true
+use_measurement_dice: true
+threshold_mode: DiceOpt
+save_dir: runs/neu_seg_etmnet
+seed: 42
+optimizer: SGD
+momentum: 0.9
+aux_loss: true
+aux_weight: 0.4
+boundary_weight: 0.2
+ce_weight: 1.0
+dice_weight: 1.0
+measurement_dice_weight: 1.0
+measurement_area_gamma: 0.5
+thresholds: [0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80]
+
