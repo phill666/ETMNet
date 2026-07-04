@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated ETMNet paper."
+title: "ETMNet: An Edge-Guided Measurement Network for Real-Time Industrial Surface Defect Assessment"
+authors:
+  - family-names: "Anonymous"
+    given-names: "Authors"
+license: "MIT"
+repository-code: "https://github.com/phil666/ETMNet"
+abstract: "Official implementation and revised evaluation protocol for ETMNet."

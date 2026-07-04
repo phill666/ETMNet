@@ -38,10 +38,27 @@ def _relative_key(path, root):
     return rel.with_suffix("").as_posix()
 
 
+def _normalize_suffixes(value, default):
+    if value is None:
+        return set(default)
+    if isinstance(value, str):
+        values = [item.strip() for item in value.replace(",", " ").split() if item.strip()]
+    else:
+        values = list(value)
+    normalized = set()
+    for item in values:
+        item = str(item).strip().lower()
+        if not item:
+            continue
+        normalized.add(item if item.startswith(".") else "." + item)
+    return normalized or set(default)
+
+
 def _scan_files(root, suffixes):
     root = Path(root)
     if not root.exists():
         raise FileNotFoundError("Directory does not exist: {}".format(root))
+    suffixes = _normalize_suffixes(suffixes, suffixes)
     files = {}
     for path in sorted(root.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in suffixes:
@@ -102,6 +119,8 @@ class BinaryDefectDataset(Dataset):
         color_jitter=(0.1, 0.1),
         mean=(0.485, 0.456, 0.406),
         std=(0.229, 0.224, 0.225),
+        image_suffixes=None,
+        mask_suffixes=None,
     ):
         self.image_dir = Path(image_dir)
         self.mask_dir = Path(mask_dir)
@@ -114,13 +133,18 @@ class BinaryDefectDataset(Dataset):
         self.mean = np.asarray(mean, dtype=np.float32).reshape(1, 1, 3)
         self.std = np.asarray(std, dtype=np.float32).reshape(1, 1, 3)
 
-        image_files = _scan_files(self.image_dir, IMAGE_SUFFIXES)
-        mask_files = _scan_files(self.mask_dir, MASK_SUFFIXES)
+        image_files = _scan_files(self.image_dir, _normalize_suffixes(image_suffixes, IMAGE_SUFFIXES))
+        mask_files = _scan_files(self.mask_dir, _normalize_suffixes(mask_suffixes, MASK_SUFFIXES))
         requested_keys = _read_split(split_file)
         self.samples = _resolve_keys(requested_keys, image_files, mask_files)
+        self.sample_by_key = {sample["key"]: sample for sample in self.samples}
 
     def __len__(self):
         return len(self.samples)
+
+    def load_original_mask(self, key):
+        sample = self.sample_by_key[str(key)]
+        return (np.asarray(Image.open(sample["mask"]).convert("L")) > 0).astype(np.uint8)
 
     def _resize(self, image, mask):
         size = (self.input_w, self.input_h)

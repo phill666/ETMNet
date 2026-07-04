@@ -85,7 +85,7 @@ class AdaptiveReceptiveRouting(nn.Module):
 
 
 class TopologyContextBlock(nn.Module):
-    """Topology-aware context block used on the semantic branch."""
+    """Lightweight context block used on the semantic branch."""
 
     def __init__(self, in_channels, out_channels=None):
         super().__init__()
@@ -250,4 +250,5 @@ class ETMNet(nn.Module):
             else:
                 (lr_mul_wd_params if is_head else wd_params).append(param)
         return wd_params, nowd_params, lr_mul_wd_params, lr_mul_nowd_params
+
 

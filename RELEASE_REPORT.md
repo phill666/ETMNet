@@ -6,10 +6,10 @@ This release directory contains only ETMNet-related source code, configs, docume
 
 ## Core Files Included
 
-- `models/etmnet.py`: ETMNet model with EdgeFlowConv and topology-aware context routing.
+- `models/etmnet.py`: ETMNet model with EdgeFlowConv and lightweight context routing.
 - `models/edgeflowconv.py`: EdgeFlowConv implementation.
 - `models/pidnet_backbone.py`: real-time three-branch segmentation backbone.
-- `losses/measurement_dice_loss.py`: measurement-oriented Dice weighting and ETMNet training loss.
+- `losses/measurement_dice_loss.py`: Dice-weighted ETMNet training loss.
 - `metrics/segmentation_metrics.py`: mIoU, defect IoU, Dice/F1, Precision, Recall, and pixel accuracy.
 - `metrics/measurement_metrics.py`: RAE, LE, BDE, CE, ConnE, Severity Acc, Severity MAE, and Spearman rho.
 - `tools/train.py`, `tools/test.py`, `tools/threshold_calibration.py`, `tools/profile_model.py`, `tools/visualize_predictions.py`.
@@ -35,3 +35,4 @@ This release directory contains only ETMNet-related source code, configs, docume
 ## Environment Note
 
 The default shell Python used during cleanup did not have `torch` installed. Model import and profiler smoke checks were verified with a PyTorch-enabled environment. Install the packages in `requirements.txt` before training or testing.
+

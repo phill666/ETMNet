@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 
@@ -13,7 +14,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from datasets import KolektorSDD2Dataset, MagneticTileDataset, NEUSegDataset
-from metrics.segmentation_metrics import BinarySegmentationMetrics, update_from_logits
+from metrics.segmentation_metrics import BinarySegmentationMetrics, logits_to_prediction, update_from_logits
 from models import ETMNet
 
 
@@ -94,6 +95,8 @@ def build_dataset(config, split, is_train):
         split_file=repo_path(split_file) if split_file else None,
         input_size=config.get("input_size", [512, 512]),
         is_train=is_train,
+        image_suffixes=config.get("image_suffixes"),
+        mask_suffixes=config.get("mask_suffixes"),
     )
 
 
@@ -115,13 +118,18 @@ def make_loader(dataset, batch_size, num_workers, shuffle, device, seed=42):
 
 def build_model(config):
     model_name = str(config.get("model_name", "ETMNet")).lower()
-    if model_name != "etmnet":
-        raise ValueError("This release builds ETMNet only, got model_name={}".format(config.get("model_name")))
+    if model_name not in {"etmnet", "pidnet"}:
+        raise ValueError("Unsupported model_name={}".format(config.get("model_name")))
+    if model_name == "pidnet":
+        if bool(config.get("use_edgeflowconv", False)):
+            raise ValueError("PIDNet config must keep use_edgeflowconv=false.")
+        if bool(config.get("use_topology_context", False)):
+            raise ValueError("PIDNet config must keep use_topology_context=false.")
     return ETMNet(
         num_classes=int(config.get("num_classes", 2)),
         aux_loss=bool(config.get("aux_loss", True)),
-        use_edgeflowconv=bool(config.get("use_edgeflowconv", True)),
-        use_topology_context=bool(config.get("use_topology_context", True)),
+        use_edgeflowconv=False if model_name == "pidnet" else bool(config.get("use_edgeflowconv", True)),
+        use_topology_context=False if model_name == "pidnet" else bool(config.get("use_topology_context", True)),
         use_boundary_aux=float(config.get("boundary_weight", 0.0)) > 0,
         edge_gamma=float(config.get("edge_gamma", 0.3)),
         topology_gamma=float(config.get("topology_gamma", 0.2)),
@@ -176,13 +184,24 @@ def write_metrics(path, metrics):
 def evaluate_loader(model, loader, device, threshold=None, use_amp=False):
     model.eval()
     metrics = BinarySegmentationMetrics()
-    for images, masks, _ in loader:
+    dataset = getattr(loader, "dataset", None)
+    use_original_masks = hasattr(dataset, "load_original_mask")
+    for images, masks, keys in loader:
         images = images.to(device, non_blocking=True)
         masks = masks.to(device, non_blocking=True)
         context = torch.cuda.amp.autocast(enabled=True) if bool(use_amp and device.type == "cuda") else nullcontext()
         with context:
             logits = main_logits(model(images))
-        update_from_logits(metrics, logits, masks, threshold=threshold)
+        if use_original_masks:
+            for index, key in enumerate(keys):
+                gt_np = dataset.load_original_mask(key)
+                sample_logits = logits[index:index + 1]
+                if sample_logits.shape[2:] != gt_np.shape:
+                    sample_logits = F.interpolate(sample_logits, size=gt_np.shape, mode="bilinear", align_corners=True)
+                pred = logits_to_prediction(sample_logits, threshold=threshold)[0].cpu()
+                metrics.update(pred, gt_np)
+        else:
+            update_from_logits(metrics, logits, masks, threshold=threshold)
     if device.type == "cuda":
         torch.cuda.synchronize()
     return metrics.compute()
